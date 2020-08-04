@@ -128,7 +128,8 @@ def election_collector(dict_tables, dict_lists, yr_end='2020'):
     return coll_elects
 
 def yr_summary_collector(election_collection):
-    
+    import pandas as pd 
+
     ## Container for results
     yr_summaries = {}
     
@@ -282,6 +283,8 @@ def st_election_collector(election_collection):
     return st_elects
 
 def st_election_formatter(df):
+    import pandas as pd 
+
     df_cln = df.copy()
     
     cols = ['Drop']

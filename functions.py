@@ -397,6 +397,7 @@ def st_election_state_mapper(dict_of_dfs, lookup_ref):
                         ## Check if incumbent + prep for state lookup
                         if '(Incumbent)' in name:
                             name = name.replace(' (Incumbent)', '')
+                            #table['Candidate'][i] = name Test me later 8.6
                             table['Incumb_Y'].iloc[i] = 1
 
                         ## Helps to determine which are general elections + adding state
@@ -427,3 +428,77 @@ def st_election_state_mapper(dict_of_dfs, lookup_ref):
         
     return new_dict
 
+def sen_leader_collector(dict_of_lists):
+    import pandas as pd
+
+    res_dict = {}
+    
+    for year in dict_of_lists:
+        try:
+            table = dict_of_lists[year][0].copy()
+            table.drop(index=0, inplace=True)
+            res_dict[year] = table
+        except KeyError as e:
+            print(f'Error! {year}: {e}.')
+            res_dict[year] = table
+            continue
+                
+    return res_dict
+
+def sen_leader_splitter(df, show=False):
+    import pandas as pd 
+
+    for col in df.iteritems():
+        headers = col[1]
+        
+        for i, hdr in enumerate(headers):
+            if isinstance(hdr, float):
+                third_df = df.iloc[i:].copy()
+                ldr_df = df.iloc[:i].copy()
+                third_df.dropna(axis=1, how='all', inplace=True)
+                third_df.dropna(axis=0, how='all', inplace=True)
+                if show:
+                    display(third_df)
+                    display(ldr_df)
+                    
+                return ldr_df, third_df
+        
+        ldr_df = df.copy()
+        third_df = None
+        if show:
+            display(ldr_df)
+        
+        return ldr_df, third_df
+
+def sen_leader_cleaner(dict_of_dfs, show=False):
+    import pandas as pd 
+    
+    res_dict = {}
+    
+    for year in dict_of_dfs:
+        table = dict_of_dfs[year].copy()
+        if show:
+            display(table)
+            
+        ldr_df, third_df = sen_leader_splitter(table, show=show)
+        
+        if third_df is None:
+            res_df = ldr_df.set_index(0, drop=True).copy()
+            res_df = res_df.T
+            res_df.reset_index(drop=True, inplace=True)
+            if show:
+                display(res_df)
+
+            res_dict[year] = res_df
+
+        else:
+            ldr_df.set_index(0, drop=True, inplace=True)
+            third_df.set_index(0, drop=True, inplace=True)
+            res_df = ldr_df.merge(third_df, how='left', left_index=True, right_index=True).copy()
+            res_df = res_df.T
+            res_df.reset_index(drop=True, inplace=True)
+            if show:
+                display(res_df)            
+            res_dict[year] = res_df
+    
+    return res_dict

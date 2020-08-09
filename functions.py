@@ -502,3 +502,43 @@ def sen_leader_cleaner(dict_of_dfs, show=False):
             res_dict[year] = res_df
     
     return res_dict
+
+def master_leader_tabler(dict_of_dfs):
+    
+    import pandas as pd
+    
+    holder1 = {}
+    holder2 = []
+    
+    
+    for year in dict_of_dfs:
+        table = dict_of_dfs[year].copy()
+        table['Year'] = year
+        to_drop = table.columns.duplicated()
+        table = table.loc[:, ~to_drop]
+        holder1[year] = table
+    
+    lngest_yr = None
+    len_cols = 1
+    for year in holder1:
+        table = holder1[year]
+        t_len_cols = len(table.columns)
+
+        if t_len_cols > len_cols:
+            len_cols = t_len_cols
+            lngest_yr = year
+            print(f'Update! New col len {len_cols}.')
+            print(f'Update! New year {lngest_yr}.')
+            
+    holder2.append(holder1[lngest_yr])
+    
+    for year in holder1:
+        if year != lngest_yr:
+            holder2.append(holder1[year])
+        
+    ldr_master_df = pd.concat(holder2, ignore_index=True)
+    ldr_master_df['Seats won'].update(ldr_master_df['Seats\xa0won'])
+    ldr_master_df.drop(columns=['Seats\xa0won', 'Last\xa0election'], inplace=True)
+    
+    return ldr_master_df
+

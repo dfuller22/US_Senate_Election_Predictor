@@ -208,6 +208,14 @@ def master_tabler(yr_summary_dict):
         holder.append(yr_summary_dict[year][1])
 
     name_lookup_df = pd.concat(holder, ignore_index=True)
+    name_lookup_df['Terms_in_office'] = 0
+
+    for cand in name_lookup_df['Incumbent']:
+        count = 0
+        for i, name in zip(name_lookup_df.index, name_lookup_df['Incumbent']):
+            if name == cand:
+                count += 1
+                name_lookup_df.at[i, 'Terms_in_office'] = count
     
     return name_lookup_df
 
@@ -536,9 +544,12 @@ def master_leader_tabler(dict_of_dfs):
         if year != lngest_yr:
             holder2.append(holder1[year])
         
-    ldr_master_df = pd.concat(holder2, ignore_index=True)
+    ldr_master_df = pd.concat(holder2, ignore_index=True, sort=True)
     ldr_master_df['Seats won'].update(ldr_master_df['Seats\xa0won'])
     ldr_master_df.drop(columns=['Seats\xa0won', 'Last\xa0election'], inplace=True)
+    ldr_master_df.columns = ['Leader', 'Leaders_seat', 'Leader_since', 'Party', 'Percentage',
+       'Popular_vote', 'Races_won', 'Seats_up', 'Seats_won', 'Seats_after',
+       'Seats_before', 'Seat_change', 'Swing', 'Year']
     
     return ldr_master_df
 

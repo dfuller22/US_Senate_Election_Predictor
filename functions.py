@@ -363,7 +363,7 @@ def st_election_aggregator(dict_of_lists):
         for table in year_list:
             if len(table['Party'].unique()) > 1:
                 tab_cols = list(table.columns)
-                targ_cols = ['Party', 'Candidate', '%', 'Turnout']
+                targ_cols = ['Party', 'Candidate', '%', 'Turnout', 'Total votes']
                 slce_cols = []
 
                 for c in tab_cols:
@@ -405,8 +405,7 @@ def st_election_state_mapper(dict_of_dfs, lookup_ref):
                         ## Check if incumbent + prep for state lookup
                         if '(Incumbent)' in name:
                             name = name.replace(' (Incumbent)', '')
-                            #table['Candidate'][i] = name Test me later 8.6
-                            table['Incumb_Y'].iloc[i] = 1
+                            table.at[i, 'Incumb_Y'] = 1
 
                         ## Helps to determine which are general elections + adding state
                         if name in list(lookup_ref['Incumbent']):
@@ -416,7 +415,7 @@ def st_election_state_mapper(dict_of_dfs, lookup_ref):
                             ## Accounting for special elections
                             for st in state_n:
                                 if not '(' in st:
-                                    table['State'][i] = st
+                                    table.at[i, 'State'] = st
 
             except Exception as e:
                     print(f'Year:{year}, {e}, {e.args}')
@@ -427,7 +426,11 @@ def st_election_state_mapper(dict_of_dfs, lookup_ref):
                         print(f'Table {year} saved!')
                     elif keep is 'N':
                         break
-
+            
+            if ('Turnout' in table.columns) & ('Total votes' in table.columns):
+                table['Turnout'].update(table['Total votes'])
+                table.drop(columns='Total votes', inplace=True)
+                
             ## Storing each table for that year
             #holder.append(table)
 
@@ -552,4 +555,81 @@ def master_leader_tabler(dict_of_dfs):
        'Seats_before', 'Seat_change', 'Swing', 'Year']
     
     return ldr_master_df
+
+def master_leader_cleaner(df, repl_dict=None, rd_stand=False, fillna_dict=None, fillna_stand=False, cols_to_slice=['Leader', 'Leaders_seat', 'Leader_since', 'Party', 'Seats_up', 'Seats_before', 'Year']):
+    
+    if isinstance(cols_to_slice, list):
+        df_ = df[cols_to_slice].copy()
+    else:
+        df_ = df.copy()
+        
+    if isinstance(repl_dict, dict):
+        repl_dict_ = repl_dict
+        
+    elif rd_stand:
+        repl_dict_ = {'Seats_up':[(14, 0)],
+                      'Leader_since':[(3, 'March 4, 1913'),(4, 'March 4, 1913'),
+                                      (6, 'March 4, 1913'), (7, 'March 4, 1913'),
+                                      (133, 'January 3, 2005'), (136, 'January 3, 2005'),
+                                      (139, 'January 3, 2005'), (146, 'January 3, 2005'),
+                                      (134, 'January 3, 2007'), (137, 'January 3, 2007'),
+                                      (140, 'January 3, 2007'), (145, 'January 3, 2007')]}        
+    else:
+        print('No dictionary to replace values.')     
+        
+    try:
+        for col in repl_dict_:
+            to_repl = repl_dict_[col]
+            
+            for tup in to_repl:
+                df_.at[tup[0], col] = tup[1]
+    except:
+        print('No values were replaced.')
+
+    
+    if isinstance(fillna_dict, dict):
+        fillna_dict_ = fillna_dict
+        
+    elif fillna_stand:
+        fillna_dict_ = {'Leader_since': {'method':'ffill', 'inplace':True},
+                        'Leader': {'value':'3rd Party', 'inplace':True},
+                        'Leaders_seat': {'value':'3rd Party', 'inplace':True}}
+        
+    else:
+        print('No NAs to fill.')
+        
+    try:
+        for col in fillna_dict_:
+            to_fill = fillna_dict_[col]
+            df_[col].fillna(**to_fill)
+    except:
+        print('No NAs were filled.')
+        
+    return df_
+
+def regex_subber_bycol(df, col, pattern, replm='', multi_patt=False):
+    import regex
+    import pandas as pd
+    
+    ## Pattern for words in () & [] removal resp.
+    ## r'\(([^\)]+)\)' ||| r'\[([^\)]+)\]'
+    
+    df_ = df.copy()
+    
+    if multi_patt:
+        if isinstance(pattern, list):
+            for patt in pattern:
+                for idx, item in zip(df_.index, df_[col]):
+                    new_item = regex.sub(patt, replm, item)
+                    df_.at[idx, col] = new_item
+        else:
+            print(('---'*10),'ERROR!', ('---'*10))
+            print("Try adding [] to 'pattern' or setting 'multi_patt' to False.")
+            return ''
+    else:      
+        for idx, item in zip(df_.index, df_[col]):
+            new_item = regex.sub(pattern, replm, item)
+            df_.at[idx, col] = new_item
+        
+    return df_
 

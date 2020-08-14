@@ -633,3 +633,113 @@ def regex_subber_bycol(df, col, pattern, replm='', multi_patt=False):
         
     return df_
 
+def yr_st_mapped_NA_handler(dict_of_dfs, turnout=True, candidate=True, percent=True, state=True):
+    
+    res_dict = {}
+    count = 0
+    
+    if turnout:
+        t = 'Turnout'
+        year_dict = {'1928':{36:1524914, 91:3026864},
+                     '1930':{42:1207011},
+                     '1932':{6:33980, 16:425634, 87:706440},
+                     '1934':{98:308274},
+                     '1936':{41:1803674},
+                     '1942':{13:142342, 73:238487},
+                     '1952':{34:2821133},
+                     '1958':{59:616469},
+                     '1974':{45:853521},
+                     '1976':{102:514169},
+                     '1980':{83:1098294},
+                     '1986':{45:677105},
+                     '1994':{20:356902},
+                     '2000':{12:1311261, 61:944144, 80:3015662, 106:1928613, 113:6267964,
+                             127:603477, 130:2540083},
+                     '2002':{7:808256, 64:444542, 67:2112604},
+                     '2004':{10:1039439, 24:1424726},
+                     '2012':{19:693787, 34:2839572}}
+
+        for year in dict_of_dfs:
+            table = dict_of_dfs[year].copy()
+            if year in year_dict:
+                fill_vals = year_dict[year]
+                table[t].fillna(value=fill_vals, inplace=True)
+                table[t].fillna(method='ffill', inplace=True)
+                res_dict[year] = table
+            elif (year == '1998') | (year == '2006'):
+                table[t].dropna(axis=0, inplace=True)
+            else:
+                res_dict[year] = table
+                
+        count += 1
+    
+    if candidate:
+        c = 'Candidate'
+        try:
+            _ = res_dict['1932']
+        except NameError:
+            res_dict = dict_of_dfs.copy()
+            
+        table_2 = res_dict['1932'].copy()
+        table_2.at[30, 'Candidate'] = 'Duncan U. Fletcher'
+        table_2.at[30, '%'] = '100%'
+        table_2.at[30, 'Incumb_Y'] = 1
+        table_2.at[30, 'State'] = 'Florida'
+        table_2.drop([31,32], axis=0, inplace=True)
+        res_dict['1932'] = table_2
+        
+        count += 1
+        
+    if percent:
+        p = '%'
+        try:
+            _ = res_dict['1932']
+        except NameError:
+            res_dict = dict_of_dfs.copy()
+            
+        perc_dict = {'1956':{68:'100'},
+                     '2012':{25:'53.74', 26:'46.19', 52:'58.87', 53:'39.37', 54:'0.50'},
+                     '2014':{91:'48.82', 92:'47.26', 93:'3.74', 94:'0.18'}}
+        
+        for year in res_dict:
+            table_3 = res_dict[year].copy()
+            if year in perc_dict:
+                fill_vals = perc_dict[year]
+                table_3[p].fillna(value=fill_vals, inplace=True)
+                if year == '1956':
+                    table_3.drop([69,70], axis=0, inplace=True)
+                res_dict[year] = table_3
+        
+        count += 1
+        
+    if state:
+        s = 'State'
+        try:
+            _ = res_dict['1994']
+        except NameError:
+            res_dict = dict_of_dfs.copy()
+            
+        for year in res_dict:
+            table_4 = res_dict[year].copy()
+            
+            if year in ['1924', '1950', '1960', '1962', '1966']:
+                table_4.at[0, s] = 'Alabama'
+            elif year == '1992':
+                table_4.at[0, s] = 'Alabama'
+                table_4.at[0, 'Incumb_Y'] = 1
+                table_4.at[1, s] = 'Alabama'
+                table_4.at[2, s] = 'Alabama'
+                table_4.at[3, s] = 'Alabama'
+
+            table_4['State'].fillna(method='ffill', inplace=True)
+
+            if year == '1992':
+                table_4.drop([4,5,6,7,8,9], axis=0, inplace=True)
+                table_4.reset_index(drop=True, inplace=True)
+            
+            res_dict[year] = table_4
+        
+        count += 1
+        
+    print(f'{count} NA operations completed.')
+    return res_dict

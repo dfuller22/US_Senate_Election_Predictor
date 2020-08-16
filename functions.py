@@ -175,6 +175,7 @@ def ref_tabler(summary_df, mod_df=True):
     ## Containers for mid-results
     st_list = []
     sntr_list = []
+    prty_list = []
     
     ## Looping through states' names
     for state in summary_df['State']:
@@ -188,8 +189,12 @@ def ref_tabler(summary_df, mod_df=True):
     for name in summary_df['Senator']:
         sntr_list.append(name)
 
+    ## Looping + storing parties
+    for party in summary_df['Party']:
+        prty_list.append(party)
+
     ## Dataframe with Sentors as index + states as values
-    state_ref_df = pd.DataFrame({'State_id':st_list, 'Incumbent':sntr_list})
+    state_ref_df = pd.DataFrame({'State_id':st_list, 'Incumbent':sntr_list, 'Party':prty_list})
     #state_ref_df.columns = ['State_id']
     
     ## Modifying list of states to that of the ref table OR not + return
@@ -201,6 +206,7 @@ def ref_tabler(summary_df, mod_df=True):
 
 def master_tabler(yr_summary_dict):
     import pandas as pd
+    import regex
 
     holder = []
 
@@ -209,6 +215,7 @@ def master_tabler(yr_summary_dict):
 
     name_lookup_df = pd.concat(holder, ignore_index=True)
     name_lookup_df['Terms_in_office'] = 0
+    name_lookup_df['Cln_name'] = name_lookup_df['Incumbent'].map(lambda x: regex.sub(r'([A-z]{1,2}\.)\s?', '', x).strip())
 
     for cand in name_lookup_df['Incumbent']:
         count = 0
@@ -386,6 +393,7 @@ def st_election_aggregator(dict_of_lists):
 
 def st_election_state_mapper(dict_of_dfs, lookup_ref):
     import pandas as pd
+    import regex
 
     new_dict = {}
 
@@ -400,6 +408,9 @@ def st_election_state_mapper(dict_of_dfs, lookup_ref):
                 table['Incumb_Y'] = 0
                 table['State'] = None
                 if 'Candidate' in table.columns:
+                    table['Cln_name'] = table['Candidate'].map(lambda x: regex.sub(r'([A-z]{1,2}\.)\s?', '', x).strip())
+                    table['Cln_name'] = table['Cln_name'].map(lambda x: regex.sub(r'\(([^\)]+)\)', '', x).strip())
+                    table['Cln_name'] = table['Cln_name'].map(lambda x: regex.sub(r'\[([^\)]+)\]', '', x).strip())
                     ## Iterate over candidate's names 
                     for i, name in enumerate(table['Candidate']):
                         ## Check if incumbent + prep for state lookup
@@ -661,6 +672,7 @@ def yr_st_mapped_NA_handler(dict_of_dfs, turnout=True, candidate=True, percent=T
 
         for year in dict_of_dfs:
             table = dict_of_dfs[year].copy()
+            table['Year'] = year
             if year in year_dict:
                 fill_vals = year_dict[year]
                 table[t].fillna(value=fill_vals, inplace=True)
@@ -730,12 +742,28 @@ def yr_st_mapped_NA_handler(dict_of_dfs, turnout=True, candidate=True, percent=T
                 table_4.at[1, s] = 'Alabama'
                 table_4.at[2, s] = 'Alabama'
                 table_4.at[3, s] = 'Alabama'
+                table_4.at[127, s] = 'Wisconsin'
+            elif year == '1968':
+                table_4.at[96, s] = 'Washington'
+                table_4.at[95, 'Party'] = 'Republican'
+            elif year == '1980':
+                table_4.at[66, 'Party'] = 'Republican'
+                table_4.at[66, s] = 'New_York'
+                table_4.at[73, s] = 'North_Carolina'
+                table_4.at[74, 'Incumb_Y'] = 1
+                table_4.at[74, 'Terms_in_office'] = 1
 
             table_4['State'].fillna(method='ffill', inplace=True)
 
             if year == '1992':
                 table_4.drop([4,5,6,7,8,9], axis=0, inplace=True)
                 table_4.reset_index(drop=True, inplace=True)
+            elif year == '1968':
+                table_4.drop([89,90,91,92,93,94], axis=0, inplace=True)
+                table_4.reset_index(drop=True, inplace=True)
+            elif year == '2010':
+                table_4.drop([2,3,4,5], axis=0, inplace=True)
+                table_4.reset_index(drop=True, inplace=True)                
             
             res_dict[year] = table_4
         

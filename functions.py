@@ -752,6 +752,10 @@ def yr_st_mapped_NA_handler(dict_of_dfs, turnout=True, candidate=True, percent=T
                 table_4.at[73, s] = 'North_Carolina'
                 table_4.at[74, 'Incumb_Y'] = 1
                 table_4.at[74, 'Terms_in_office'] = 1
+            elif year == '1986':
+                table_4.at[24, s] = 'Connecticut'
+                table_4.at[24, 'Candidate'] = 'Chris Dodd'
+                table_4.at[24, 'Cln_name'] = 'Chris Dodd'
 
             table_4['State'].fillna(method='ffill', inplace=True)
 
@@ -760,6 +764,9 @@ def yr_st_mapped_NA_handler(dict_of_dfs, turnout=True, candidate=True, percent=T
                 table_4.reset_index(drop=True, inplace=True)
             elif year == '1968':
                 table_4.drop([89,90,91,92,93,94], axis=0, inplace=True)
+                table_4.reset_index(drop=True, inplace=True)
+            elif year == '1986':
+                table_4.drop([2,3,4,5,6,7,8], axis=0, inplace=True)
                 table_4.reset_index(drop=True, inplace=True)
             elif year == '2010':
                 table_4.drop([2,3,4,5], axis=0, inplace=True)

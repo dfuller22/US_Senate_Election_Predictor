@@ -403,6 +403,11 @@ def st_election_state_mapper(dict_of_dfs, lookup_ref):
         ## Loop through each election table + set col for incumbents
         if isinstance(dict_of_dfs[year], pd.DataFrame):
             table = dict_of_dfs[year]
+            ## Covering up two '?' Candidates
+            if year == '1932':
+                table.at[124, 'Candidate'] = 'Unknown'
+                table.at[125, 'Candidate'] = 'Unknown'
+                table['Candidate'].fillna('Unknown', inplace=True)            
             
             try:
                 table['Incumb_Y'] = 0
@@ -631,26 +636,30 @@ def regex_subber_bycol(df, col, pattern, replm='', multi_patt=False):
         if isinstance(pattern, list):
             for patt in pattern:
                 for idx, item in zip(df_.index, df_[col]):
-                    new_item = regex.sub(patt, replm, item)
-                    df_.at[idx, col] = new_item
+                    if isinstance(item, str):
+                        new_item = regex.sub(patt, replm, item)
+                        df_.at[idx, col] = new_item
         else:
             print(('---'*10),'ERROR!', ('---'*10))
             print("Try adding [] to 'pattern' or setting 'multi_patt' to False.")
             return ''
     else:      
         for idx, item in zip(df_.index, df_[col]):
-            new_item = regex.sub(pattern, replm, item)
-            df_.at[idx, col] = new_item
+            if isinstance(item, str):
+                new_item = regex.sub(pattern, replm, item)
+                df_.at[idx, col] = new_item
         
     return df_
 
 def yr_st_mapped_NA_handler(dict_of_dfs, turnout=True, candidate=True, percent=True, state=True):
-    
+    import pandas as pd
+    import numpy as np
     res_dict = {}
     count = 0
     
     if turnout:
         t = 'Turnout'
+        turn_patts = [r"'", r",", r'\[([^\)]+)\]']
         year_dict = {'1928':{36:1524914, 91:3026864},
                      '1930':{42:1207011},
                      '1932':{6:33980, 16:425634, 87:706440},
@@ -677,10 +686,16 @@ def yr_st_mapped_NA_handler(dict_of_dfs, turnout=True, candidate=True, percent=T
                 fill_vals = year_dict[year]
                 table[t].fillna(value=fill_vals, inplace=True)
                 table[t].fillna(method='ffill', inplace=True)
+                table = regex_subber_bycol(table, t, turn_patts, multi_patt=True)
+                table[t] = table[t].astype(np.int64)
                 res_dict[year] = table
             elif (year == '1998') | (year == '2006'):
                 table[t].dropna(axis=0, inplace=True)
+                table[t] = table[t].astype(np.int64)
+                res_dict[year] = table
             else:
+                table = regex_subber_bycol(table, t, turn_patts, multi_patt=True)
+                table[t] = table[t].astype(np.int64)
                 res_dict[year] = table
                 
         count += 1
@@ -756,6 +771,11 @@ def yr_st_mapped_NA_handler(dict_of_dfs, turnout=True, candidate=True, percent=T
                 table_4.at[24, s] = 'Connecticut'
                 table_4.at[24, 'Candidate'] = 'Chris Dodd'
                 table_4.at[24, 'Cln_name'] = 'Chris Dodd'
+            elif year == '2006':
+                table_4.at[7, s] = 'California'
+                table_4.at[17, s] = 'Connecticut'
+                table_4.at[23, s] = 'Delaware'
+
 
             table_4['State'].fillna(method='ffill', inplace=True)
 
@@ -768,6 +788,9 @@ def yr_st_mapped_NA_handler(dict_of_dfs, turnout=True, candidate=True, percent=T
             elif year == '1986':
                 table_4.drop([2,3,4,5,6,7,8], axis=0, inplace=True)
                 table_4.reset_index(drop=True, inplace=True)
+            elif year == '2006':
+                table_4.drop([3,4,5,6,103,104,105,106,107], axis=0, inplace=True)
+                table_4.reset_index(drop=True, inplace=True) 
             elif year == '2010':
                 table_4.drop([2,3,4,5], axis=0, inplace=True)
                 table_4.reset_index(drop=True, inplace=True)                
@@ -778,3 +801,208 @@ def yr_st_mapped_NA_handler(dict_of_dfs, turnout=True, candidate=True, percent=T
         
     print(f'{count} NA operations completed.')
     return res_dict
+
+def sen_leader_builder(df):
+    import pandas as pd
+    import numpy as np
+    import regex
+    
+    try:
+        new_df = df.copy()
+    except:
+        return 'Error in copying of DataFrame!'
+    
+    patterns = [r'\(([^\)]+)\)', r'\[([^\)]+)\]']
+    new_df = regex_subber_bycol(new_df, 'Seats_before', patterns, multi_patt=True)
+    #new_df = regex_subber_bycol(new_df, 'Seats_up', patterns, multi_patt=True)     
+
+    new_df['Majority'] = 0
+    new_df['Seats_up%'] = None
+    new_df['Seats_before%'] = None
+    new_df['Party_enc'] = None
+
+    new_df['Seats_before'] = new_df['Seats_before'].astype(np.int64)
+    new_df.at[new_df['Seats_before'].idxmax(), 'Majority'] = 1
+
+    for idx, seats in zip(new_df.index, new_df['Seats_before']):
+        total = new_df['Seats_before'].sum()
+        new_df.at[idx, 'Seats_before%'] = (seats/total)
+
+    new_df['Seats_up'] = new_df['Seats_up'].astype(np.int64)
+    for idx, seats in zip(new_df.index, new_df['Seats_up']):
+        if new_df['Seats_before'][idx] == 0:
+            new_df.at[idx, 'Seats_up%'] = 0
+        else:
+            ins = seats / new_df['Seats_before'][idx]
+            new_df.at[idx, 'Seats_up%'] = ins
+
+    for idx, party in zip(new_df.index, new_df['Party']):
+        if party == 'Republican':
+            new_df.at[idx, 'Party_enc'] = 'R'
+        elif party == 'Democratic':
+            new_df.at[idx, 'Party_enc'] = 'D'
+        elif party == 'Independent':
+            new_df.at[idx, 'Party_enc'] = 'I'
+        elif party == 'Socialist':
+            new_df.at[idx, 'Party_enc'] = 'S'
+        elif party == 'Socialist Labor':
+            new_df.at[idx, 'Party_enc'] = 'S'
+        elif party == 'Socialist Workers':
+            new_df.at[idx, 'Party_enc'] = 'S'
+        else:
+            new_df.at[idx, 'Party_enc'] = 'T' 
+
+    return new_df
+
+def st_mapped_cleaner(dict_of_dfs, lookup_df, sen_ldr_df, genderize=False):
+    import regex
+    import pandas as pd
+    import numpy as np
+    from genderize import Genderize
+
+    
+    res_dict = {}
+    count = 0
+    
+    for year in dict_of_dfs:
+        count += 1
+        table = dict_of_dfs[year].copy()
+        lookup_table = lookup_df[lookup_df['Year'] == year].copy()
+        sen_ldr_slce = sen_ldr_df[sen_ldr_df['Year'] == year].copy()
+        
+        table['Terms_in_office'] = 0
+        table['Party_enc'] = None
+        table['First_name'] = None
+        if genderize:
+            table['Gender'] = None
+        
+        ## REFORMATTING % AS A FLOAT    
+        for i, p in zip(table.index, table['%']):
+            if isinstance(p, str):
+                if ',' in p:
+                    p = p.replace(',', '.')
+                if '<' in p:
+                    p = p.replace('<', '')
+                if '[23]' in p:
+                    p = p.replace('[23]', '')
+                if '%' in p:
+                    try:
+                        table.at[i, '%'] = np.float(p[:-1])
+                    except ValueError as e:
+                        print(year)
+                        print(i)
+                        
+
+        ## REMOVING () & [] FROM THE NAMES
+        patterns = [r'\(([^\)]+)\)', r'\[([^\)]+)\]']
+        table = regex_subber_bycol(table, 'Candidate', patterns, multi_patt=True)
+
+        # if year == '1932':
+        #     res_dict[year] = table
+        #     continue
+        
+        ## M
+        for n_idx, name in zip(table.index, table['Cln_name']):
+            for i_idx, incmb in zip(lookup_table.index, lookup_table['Cln_name']):
+                if incmb == name:
+                    table.at[n_idx, 'Terms_in_office'] = lookup_table['Terms_in_office'][i_idx]
+
+                    if table['Incumb_Y'][n_idx] != 1:
+                        table.at[n_idx, 'Incumb_Y'] = 1  
+
+                    if table['Party'][n_idx] != lookup_table['Party'][i_idx]:
+                        table.at[n_idx, 'Party'] = lookup_table['Party'][i_idx]         
+        
+        ## MK
+        for idx, party in zip(table.index, table['Party']):
+            if party == 'Republican':
+                table.at[idx, 'Party_enc'] = 'R'
+            elif party == 'Democratic':
+                table.at[idx, 'Party_enc'] = 'D'
+            elif party == 'Independent':
+                table.at[idx, 'Party_enc'] = 'I'
+            elif party == 'Socialist':
+                table.at[idx, 'Party_enc'] = 'S'
+            elif party == 'Socialist Labor':
+                table.at[idx, 'Party_enc'] = 'S'
+            elif party == 'Socialist Workers':
+                table.at[idx, 'Party_enc'] = 'S'
+            else:
+                table.at[idx, 'Party_enc'] = 'T'              
+
+        ## OI
+        for idx, name in zip(table.index, table['Cln_name']):
+            first = regex.findall(r'([A-Z]{1}[A-z]+\s{1})', name)
+            try:
+                first = first.pop()
+                first = first.strip()
+                table.at[idx, 'First_name'] = first
+            except IndexError:
+                table.at[idx, 'First_name'] = name
+                
+        ## TY
+        if genderize:
+            genderizer = Genderize()
+            
+            for idx, name in zip(table.index, table['First_name']):
+                pred = None
+                guess = genderizer.get([name])[0]
+
+                if guess['gender'] == 'male':
+                    if guess['probability'] < .60:
+                        pred = 'F'
+                    else:
+                        pred = 'M'
+
+                if guess['gender'] == 'female':
+                    if guess['probability'] < .60:
+                        pred = 'M'
+                    else:
+                        pred = 'F'
+
+                table.at[idx, 'Gender'] = pred
+        
+        ## DF
+        try:
+            sen_ldr_slce = sen_leader_builder(sen_ldr_slce)
+            
+            to_map1 = sen_ldr_slce.set_index('Party_enc')['Seats_up%']
+            if to_map1.shape[0] > 2:
+                to_map1 = to_map1.groupby(level=0).sum()
+
+            table['Seats_up%'] = table['Party_enc'].map(to_map1)
+            table['Seats_up%'].fillna(0, inplace=True)
+
+            to_map2 = sen_ldr_slce.set_index('Party_enc')['Seats_before%']
+            if to_map2.shape[0] > 2:
+                to_map2 = to_map2.groupby(level=0).sum()
+                
+            table['Seats_before%'] = table['Party_enc'].map(to_map2)
+            table['Seats_before%'].fillna(0, inplace=True)
+        except KeyError as e:
+            display(table)
+            print(e)
+            break
+        
+        table.drop(columns=['Party', 'Candidate'], inplace=True)
+        res_dict[year] = table
+        
+        if count%20 == 0:
+            print(f'20 loops done! Just finished {year}.')
+
+    print(f'Finished {count} years! Latest year collected {year}.')    
+    return res_dict
+
+def cln_st_combiner(dict_of_dfs):
+    import pandas as pd
+    
+    holder = []
+    
+    for year in dict_of_dfs:
+        table = dict_of_dfs[year].copy()
+        holder.append(table)
+        
+    df = pd.concat(holder, ignore_index=True)
+    
+    return df
+

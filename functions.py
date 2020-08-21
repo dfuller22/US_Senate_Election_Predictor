@@ -1006,3 +1006,64 @@ def cln_st_combiner(dict_of_dfs):
     
     return df
 
+class Timer():
+    
+    """Timer class designed to keep track of and save modeling runtimes. It
+    will automatically find your local timezone. Methods are .stop, .start,
+    .record, and .now"""
+    
+    def __init__(self, fmt="%m/%d/%Y - %I:%M %p", verbose=None):
+        import tzlocal
+        self.verbose = verbose
+        self.tz = tzlocal.get_localzone()
+        self.fmt = fmt
+        
+    def now(self):
+        import datetime as dt
+        return dt.datetime.now(self.tz)
+    
+    def start(self):
+        if self.verbose:
+            print(f'---- Timer started at: {self.now().strftime(self.fmt)} ----')
+        self.started = self.now()
+        
+    def stop(self):
+        print(f'---- Timer stopped at: {self.now().strftime(self.fmt)} ----')
+        self.stopped = self.now()
+        self.time_elasped = (self.stopped - self.started)
+        print(f'---- Time elasped: {self.time_elasped} ----')
+        
+    def record(self):
+        try:
+            self.lap = self.time_elasped
+            return self.lap
+        except:
+            return print('---- Timer has not been stopped yet... ----')
+        
+    def __repr__(self):
+        return f'---- Timer object: TZ = {self.tz} ----'
+
+def fit_n_pred(clf_, X_tr, X_te, y_tr):
+    
+    """Takes in Classifier, training data (X,y), and test data(X). Will output 
+    predictions based upon both the training and test data using the sklearn
+    .predict method. MUST unpack into two variables (train, test)."""
+
+    try:
+        timer = Timer()
+        timer.start()
+    except:
+        print('No timer for fitting.')
+    
+    clf_.fit(X_tr, y_tr)
+
+    y_hat_trn = clf_.predict(X_tr)
+    y_hat_tes = clf_.predict(X_te)
+
+    try:
+        timer.stop()
+    except:
+        pass
+    
+    display(clf_)
+    return y_hat_trn, y_hat_tes

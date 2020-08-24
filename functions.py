@@ -1022,16 +1022,18 @@ class Timer():
         import datetime as dt
         return dt.datetime.now(self.tz)
     
-    def start(self):
-        if self.verbose:
+    def start(self, disp_time=True):
+        if disp_time:
             print(f'---- Timer started at: {self.now().strftime(self.fmt)} ----')
         self.started = self.now()
         
-    def stop(self):
-        print(f'---- Timer stopped at: {self.now().strftime(self.fmt)} ----')
+    def stop(self, disp_time=True):
+        if disp_time:
+            print(f'---- Timer stopped at: {self.now().strftime(self.fmt)} ----')
         self.stopped = self.now()
         self.time_elasped = (self.stopped - self.started)
-        print(f'---- Time elasped: {self.time_elasped} ----')
+        if disp_time:
+            print(f'---- Time elasped: {self.time_elasped} ----')
         
     def record(self):
         try:
@@ -1043,7 +1045,7 @@ class Timer():
     def __repr__(self):
         return f'---- Timer object: TZ = {self.tz} ----'
 
-def fit_n_pred(clf_, X_tr, X_te, y_tr):
+def fit_n_pred(reg_, X_tr, X_te, y_tr, show_reg=True):
     
     """Takes in Classifier, training data (X,y), and test data(X). Will output 
     predictions based upon both the training and test data using the sklearn
@@ -1051,19 +1053,56 @@ def fit_n_pred(clf_, X_tr, X_te, y_tr):
 
     try:
         timer = Timer()
-        timer.start()
+        timer.start(disp_time=False)
     except:
         print('No timer for fitting.')
     
-    clf_.fit(X_tr, y_tr)
+    reg_.fit(X_tr, y_tr)
 
-    y_hat_trn = clf_.predict(X_tr)
-    y_hat_tes = clf_.predict(X_te)
+    y_hat_trn = reg_.predict(X_tr)
+    y_hat_tes = reg_.predict(X_te)
 
     try:
-        timer.stop()
+        timer.stop(disp_time=False)
     except:
         pass
     
-    display(clf_)
+    if show_reg:
+        display(reg_)
     return y_hat_trn, y_hat_tes
+
+def grid_searcher(reg_, params, X_tr, X_te, y_tr, y_te, cv=None, keep_t=False, custom_scorer=None, train_score=True):
+    
+    """Takes any classifier, train/test data for X/y, and dict of parameters to
+    iterate over. Optional parameters select for cross-validation tuning, keeping
+    time for running the gridsearch, and returning training scores when done.
+    Default parameters only return the fitted grid search object. MUST HAVE Timer
+    class imported."""
+    
+    from sklearn.model_selection import GridSearchCV
+    import numpy as np
+    
+    ## Instantiate obj. with our targets
+    grid_s = GridSearchCV(reg_, params, cv=cv, scoring=custom_scorer, return_train_score=train_score)
+    
+    ## Time and fit run the 'search'
+    time = Timer()
+    time.start()
+    grid_s.fit(X_tr, y_tr)
+    time.stop()
+    
+    ## Display results
+    tr_score = np.mean(grid_s.cv_results_['mean_train_score'])
+    te_score = grid_s.score(X_te, y_te)
+    print(f'Mean Training Score: {tr_score :.2%}')
+    print(f'Mean Test Score: {te_score :.2%}')
+    print('Best Parameters:')
+    print(grid_s.best_params_)
+    
+    ## Time keeping and grid obj
+    if keep_t:
+        lap = time.record().total_seconds()
+        print('**********All done!**********')
+        return grid_s, lap
+    else:
+        return grid_s

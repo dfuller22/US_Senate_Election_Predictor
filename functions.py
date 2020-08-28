@@ -1094,8 +1094,8 @@ def grid_searcher(reg_, params, X_tr, X_te, y_tr, y_te, cv=None, keep_t=False, c
     ## Display results
     tr_score = np.mean(grid_s.cv_results_['mean_train_score'])
     te_score = grid_s.score(X_te, y_te)
-    print(f'Mean Training Score: {tr_score :.2%}')
-    print(f'Mean Test Score: {te_score :.2%}')
+    print(f'Mean Training Score: {tr_score :.2}')
+    print(f'Mean Test Score: {te_score :.2}')
     print('Best Parameters:')
     print(grid_s.best_params_)
     
@@ -1106,3 +1106,216 @@ def grid_searcher(reg_, params, X_tr, X_te, y_tr, y_te, cv=None, keep_t=False, c
         return grid_s, lap
     else:
         return grid_s
+
+def regressor_tester(reg_, X_tr, X_te, y_tr, y_te, verbose=False, display_res=False, keep_preds=False):
+    import pandas as pd
+    import numpy as np
+    from sklearn import metrics
+    
+    if isinstance(reg_, list):
+        count = 0
+        holder = []
+        
+        for r in reg_:
+            y_hat_train, y_hat_test = fit_n_pred(r, X_tr, X_te, y_tr, show_reg=verbose)
+            tr_mse = metrics.mean_squared_error(y_tr, y_hat_train)
+            tr_rmse = np.sqrt(metrics.mean_squared_error(y_tr, y_hat_train))
+            tr_r2 = metrics.r2_score(y_tr, y_hat_train)
+            
+            te_mse = metrics.mean_squared_error(y_te, y_hat_test)
+            te_rmse = np.sqrt(metrics.mean_squared_error(y_te, y_hat_test))
+            te_r2 = metrics.r2_score(y_te, y_hat_test)
+            
+            reg_res = [['Name', 'Tr_MSE', 'Tr_RMSE', 'Tr_R2', 'Te_MSE', 'Te_RMSE', 'Te_R2'], 
+                       [str(type(r)), tr_mse, tr_rmse, tr_r2, te_mse, te_rmse, te_r2]]
+            
+            res_df_inner = pd.DataFrame(reg_res[1:], columns=reg_res[0])
+            holder.append(res_df_inner)
+            count += 1
+            
+        print(('---'*10), f'{count} regressors evaluated.', ('---'*10))
+        res_df = pd.concat(holder, ignore_index=True)
+        if display_res:
+            display(res_df)
+        if keep_preds:
+            return res_df, y_hat_train, y_hat_test
+        
+        return res_df
+    
+    else:
+        y_hat_train, y_hat_test = fit_n_pred(reg_, X_tr, X_te, y_tr, show_reg=verbose)
+
+        tr_mse = metrics.mean_squared_error(y_tr, y_hat_train)
+        tr_rmse = np.sqrt(metrics.mean_squared_error(y_tr, y_hat_train))
+        tr_r2 = metrics.r2_score(y_tr, y_hat_train)
+
+        te_mse = metrics.mean_squared_error(y_te, y_hat_test)
+        te_rmse = np.sqrt(metrics.mean_squared_error(y_te, y_hat_test))
+        te_r2 = metrics.r2_score(y_te, y_hat_test)
+
+        reg_res = [['Name', 'Tr_MSE', 'Tr_RMSE', 'Tr_R2', 'Te_MSE', 'Te_RMSE', 'Te_R2'], 
+                   [str(type(reg_)), tr_mse, tr_rmse, tr_r2, te_mse, te_rmse, te_r2]]
+
+        res_df_ = pd.DataFrame(reg_res[1:], columns=reg_res[0])
+        if display_res:
+            display(res_df_)
+        if keep_preds:
+            return res_df_, y_hat_train, y_hat_test
+        
+        return res_df_
+
+def gender_guesser(inp_df, count_max=1000, g_thresh=0.6, online=False):
+    import pandas as pd
+    import numpy as np
+    from genderize import Genderize
+    
+    ## Instantiate Genderize + making varibles for use
+    g_izer = Genderize()
+    out_df = inp_df.copy()
+    count = 0
+    
+    ## Q.C. for formatting
+    if 'Gender' not in out_df.columns:
+        out_df['Gender'] = 'None'
+
+    ## Looping through ea. name and making a guess
+    for idx, name in zip(out_df.index, out_df['First_name']):
+        ## Filtering out previously filled items
+        if out_df['Gender'].loc[idx] == 'None':
+            pred = None
+            ## Try statement for api error results
+            try:
+                ## Pull guess dict from api or manufacture one
+                if online:
+                    guess = g_izer.get([name])[0]
+                else:
+                    guess = {}
+                    guess['gender'] = np.random.choice(['male', 'female'])
+                    guess['probability'] = np.random.randint(0.01, high=1)
+
+                ## Executing custom threshold for gender probability
+                if guess['gender'] == 'male':
+                    if guess['probability'] < g_thresh:
+                        pred = 'F'
+                    else:
+                        pred = 'M'
+
+                if guess['gender'] == 'female':
+                    if guess['probability'] < g_thresh:
+                        pred = 'M'
+                    else:
+                        pred = 'F'
+
+                ## Setting the prediction into the correct index
+                out_df.at[idx, 'Gender'] = pred
+                count += 1
+                
+            except Exception as e: #GenderizeException:
+                print('Pred Error:\n')
+                print(e, '\n')
+                break
+        
+        ## Pseudo call limit for offline testing
+        if (1 < count) & (count % count_max == 0):
+            print(('***'*10), f'Hit {count_max} name limit.', ('***'*10))
+            return out_df
+        
+    print(('***'*10),f'Finished {count} names. Remaining available: {count_max-count}.',('***'*10))
+    return out_df
+
+def plot_importance(tree, X_tr, top_n=10, figsize=(10,10), ax=None):
+    
+    """Takes in pre-fit descision tree and the training X data used. Will output
+    a horizontal bar plot (.plt) of the top 10 (default) features used in said tree."""
+    
+    import pandas as pd
+    import matplotlib as plt
+
+    imps = pd.Series(tree.feature_importances_,index=X_tr.columns)
+    imps.sort_values(ascending=True).tail(top_n).plot(kind='barh',figsize=figsize, ax=ax)
+    return imps
+
+def rsqd_scorer(y_true, y_pred):
+    from sklearn.metrics import r2_score
+    
+    score = r2_score(y_true, y_pred)
+    #print(f'R2: {score}')
+    
+    return score
+
+def rmse_scorer(y_true, y_pred):
+    from sklearn.metrics import mean_squared_error
+    import numpy as np
+    
+    score = np.sqrt(mean_squared_error(y_true, y_pred))
+    #print(f'RMSE: {score}')
+    
+    return score
+
+def rmse_r2_scorer(y_true, y_pred):
+    
+    score = rmse_scorer(y_true, y_pred)
+    rsqd_scorer(y_true, y_pred)
+    
+    return score
+
+def two_scores(grtr_is_bttr=False):
+    from sklearn.metrics import make_scorer
+    
+    return make_scorer(rmse_r2_scorer, greater_is_better=grtr_is_bttr)
+
+## https://stats.stackexchange.com/questions/110599/how-to-get-both-mse-and-r2-from-a-sklearn-gridsearchcv
+
+def cand_per_yr_viewer(party_dict, yr_start='1920', yr_end=None, bar_width=0.15, figsize_=(10,7), keep=False):
+    import matplotlib.pyplot as plt
+    import numpy as np
+    
+    # https://matplotlib.org/3.1.0/gallery/lines_bars_and_markers/barchart.html
+    ha = {'center': 'center', 'right': 'left', 'left': 'right'}
+    offset = {'center': 0, 'right': 1, 'left': -1}
+    xpos = 'center'
+    party_list = ['R', 'D', 'T', 'S', 'I']
+    bar_list = [(-1.5*bar_width), (-bar_width/2), (bar_width/2), (1.5*bar_width), (2.5*bar_width)]
+    series_holder = []
+    rect_holder = []
+
+    if int(yr_start) > 2006:
+        party_list = ['R', 'D', 'T', 'I']
+    
+    for party in party_list:
+        series = party_dict[party].copy()
+        if yr_end:
+            series_holder.append(series.loc[yr_start:yr_end])
+        else:
+            series_holder.append(series.loc[yr_start:])
+    
+    fig, ax = plt.subplots(figsize=figsize_)
+    
+    for series, bar, party in zip(series_holder, bar_list, party_list):
+        ind_ = np.arange(len(series.index))
+        rects = ax.bar(ind_ + bar, series, bar_width, label=party)
+
+        for rect in rects:
+            height = rect.get_height()
+            ax.annotate('{}'.format(height), 
+                        xy=(rect.get_x() + rect.get_width() / 2, height), 
+                        xytext=(offset[xpos]*3, 3), textcoords="offset points",
+                        ha=ha[xpos], va='bottom')
+        rect_holder.append(rects)
+        
+    ax.set_ylabel('# of Candidates Running')
+    ax.set_xlabel('Year')
+    ax.set_title(f'# of Candidates by Year: {yr_start}-{yr_end}')
+    ax.set_xticks(np.arange(len(series_holder[0].index)))
+    ax.set_xticklabels(series_holder[0].index)
+    ax.legend()
+        
+    fig.tight_layout()
+    plt.show()
+    
+    if keep:
+        res_dict = {}
+        res_dict['series'] = series_holder
+        res_dict['rects'] = rect_holder
+       
+        return res_dict

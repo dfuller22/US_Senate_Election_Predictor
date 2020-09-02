@@ -6,7 +6,8 @@ DELIVERABLES FOR THE WKND:
 ** Annotate final notebooks -------------------------DONE----------------
 ** Comment out .py file -----------------------------DONE----------------
 ** Add docstrings to .py file
-** Complete non-tech presentation
+** Complete non-tech presentation -------------------DONE----------------
+** Record non-tech presentation
 ** Apply business case/non-tech to README
 ** BLOG this project
 

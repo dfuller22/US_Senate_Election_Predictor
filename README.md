@@ -71,7 +71,7 @@ The resulting CSV file contains:
 
 Below is what the resulting file looks like loaded in with the Pandas package:
 
-<img src="./Images/fin_df.png" alt="Final DataFrame" style="height: 80%; width:80%;"/>
+<img src="./Images/fin_df.PNG" alt="Final DataFrame" style="height: 80%; width:80%;"/>
 
 ### Features Explained
 
@@ -127,15 +127,15 @@ I had a feeling that being an incumbent senator would help one's prospects for r
 
 #### Democratic Party
 
-<img src="./Images/d_votes_incumb.png" alt="Average Percent of Vote by Incumbent 'D'" style="height: 70%; width:80%;"/>
+<img src="./Images/d_votes_incumb.PNG" alt="Average Percent of Vote by Incumbent 'D'" style="height: 70%; width:80%;"/>
 
 #### Republican Party
 
-<img src="./Images/r_votes_incumb.png" alt="Average Percent of Vote by Incumbent 'R'" style="height: 70%; width:80%;"/>
+<img src="./Images/r_votes_incumb.PNG" alt="Average Percent of Vote by Incumbent 'R'" style="height: 70%; width:80%;"/>
 
 #### Third Parties
 
-<img src="./Images/t_votes_incumb.png" alt="Average Percent of Vote by Incumbent 'T'" style="height: 70%; width:80%;"/>
+<img src="./Images/t_votes_incumb.PNG" alt="Average Percent of Vote by Incumbent 'T'" style="height: 70%; width:80%;"/>
 
 > Being an incumbent senator is *very important* to indicating the amount of votes one will receive in the following election. 
 
@@ -156,7 +156,7 @@ Due to the nature of my target variable, it was necessary that I use a regressio
 
 Here are the results:
 
-<img src="./Images/van_model_eval.png" alt="Vanilla Model Evaluation" style="height: 70%; width:80%;"/>
+<img src="./Images/van_model_eval.PNG" alt="Vanilla Model Evaluation" style="height: 70%; width:80%;"/>
 
 The column I used to make my final decision is the `Te_RMSE`, as this represents the error on the testing (or validation) set. As the lowest of these came from the Random Forest Regressor, that is the one I stuck with.
 

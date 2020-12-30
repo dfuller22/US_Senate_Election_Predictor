@@ -125,6 +125,7 @@ dmypy.json
 .pyre/
 
 # Unnecessary data/files
+.gitattributes
 no_push/
 Pickles/
 .ipynb_checkpoints/

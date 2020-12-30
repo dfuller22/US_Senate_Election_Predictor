@@ -123,3 +123,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Unnecessary data/files
+no_push/
+Pickles/
+.ipynb_checkpoints/
